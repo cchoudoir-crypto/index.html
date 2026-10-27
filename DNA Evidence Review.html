@@ -1,0 +1,580 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>DNA Evidence Review</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Familjen+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: forensic review tool — slim header, target tabs, level switcher, one column of question cards */
+:root{
+  --paper:#f3f6f6; --surface:#ffffff; --ink:#13212a; --muted:#566872; --line:#d6dfe2; --line-strong:#9aabb2;
+  --grid:#e3eaec; --band:#eef3f4; --accent:#0e6a73; --accent-soft:#dcefef;
+  --pur:#7a3fb0; --pyr:#c46a12; --cut:#c5302b;
+  --good:#1d7a4c; --good-soft:#e1f2e8; --bad:#b0361e; --bad-soft:#f8e5df;
+  --f-display:"Familjen Grotesk","Segoe UI",system-ui,sans-serif;
+  --f-body:"Atkinson Hyperlegible","Segoe UI",system-ui,sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root{
+  --paper:#0e1518; --surface:#152025; --ink:#e5edef; --muted:#93a5ac; --line:#263840; --line-strong:#4c626b;
+  --grid:#1e2d33; --band:#18262c; --accent:#53b6be; --accent-soft:#16363a;
+  --pur:#b98ae6; --pyr:#f0a35a; --cut:#f0716a;
+  --good:#52c48c; --good-soft:#163a2a; --bad:#f2876e; --bad-soft:#3d221b; color-scheme:dark}}
+
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.55 var(--f-body);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-top:env(safe-area-inset-top,0px);padding-bottom:calc(48px + env(safe-area-inset-bottom,0px))}
+.wrap{max-width:880px;margin:0 auto}
+header{padding-block:28px 8px}
+.eyebrow{font:600 12px/1 var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+h1{font:700 clamp(30px,5vw,42px)/1.05 var(--f-display);margin:8px 0 10px;letter-spacing:-.01em;text-wrap:balance}
+.std{color:var(--muted);max-width:64ch;margin:0}
+.std b{color:var(--ink)}
+
+nav.lt{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:22px 0 0}
+nav.lt button{all:unset;cursor:pointer;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:6px;min-width:0}
+nav.lt button:focus-visible,.lv button:focus-visible,.btn:focus-visible,.opt:focus-visible,.gap:focus-visible,.stepbtn:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+nav.lt button[aria-selected="true"]{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.ltk{font:600 12px/1 var(--f-mono);color:var(--accent);letter-spacing:.05em}
+.ltn{font:600 15px/1.2 var(--f-display);overflow-wrap:anywhere}
+.meter{height:5px;border-radius:3px;background:var(--grid);overflow:hidden}
+.meter i{display:block;height:100%;background:var(--accent);width:0;transition:width .3s}
+@media (max-width:620px){nav.lt{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+.lthead{margin:30px 0 14px}
+.lthead h2{font:700 26px/1.15 var(--f-display);margin:0 0 6px;text-wrap:balance}
+.lthead p{margin:0;color:var(--muted);font-style:italic;max-width:64ch}
+.lv{display:flex;flex-wrap:wrap;gap:6px;margin:16px 0 20px;padding:4px;background:var(--surface);border:1px solid var(--line);border-radius:12px;width:fit-content;max-width:100%}
+.lv button{all:unset;cursor:pointer;padding:8px 14px;border-radius:8px;font:600 14px/1.2 var(--f-display);display:flex;align-items:center;gap:8px}
+.lv button[aria-selected="true"]{background:var(--accent);color:var(--surface)}
+.lv small{font:400 12px var(--f-mono);opacity:.8}
+
+.qs{display:flex;flex-direction:column;gap:16px}
+.q{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:20px 22px;min-width:0}
+.q.ok{border-left:4px solid var(--good)} .q.no{border-left:4px solid var(--bad)}
+.qhead{display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap}
+.qnum{font:600 13px/1 var(--f-mono);background:var(--accent-soft);color:var(--accent);border-radius:6px;padding:5px 8px}
+.qtype{font:600 11px/1 var(--f-mono);letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+.qstat{margin-left:auto;font:600 13px/1 var(--f-mono)}
+.qstat.ok{color:var(--good)} .qstat.no{color:var(--bad)}
+.prompt{margin:0 0 14px;font-size:17px;max-width:68ch}
+.fig{margin:4px 0 16px;overflow-x:auto}
+.fig svg{display:block;width:100%;height:auto;max-width:100%}
+
+.opts{display:grid;gap:8px}
+.opt{all:unset;cursor:pointer;border:1px solid var(--line);border-radius:10px;padding:11px 14px;display:flex;gap:12px;align-items:flex-start;min-width:0}
+.opt:hover:not([disabled]){border-color:var(--accent);background:var(--accent-soft)}
+.opt .k{font:600 13px/1.5 var(--f-mono);color:var(--muted);flex:none}
+.opt[disabled]{cursor:default}
+.opt.right{border-color:var(--good);background:var(--good-soft)}
+.opt.wrong{border-color:var(--bad);background:var(--bad-soft)}
+.fb{margin-top:12px;padding:12px 14px;border-radius:10px;background:var(--band);font-size:15px}
+.fb b{font-family:var(--f-display)}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:12px}
+.btn{all:unset;cursor:pointer;font:600 14px/1 var(--f-display);padding:11px 16px;border-radius:9px;background:var(--accent);color:var(--surface)}
+.btn.ghost{background:transparent;color:var(--accent);border:1px solid var(--line-strong)}
+.btn:hover{filter:brightness(1.08)}
+.btn[disabled]{opacity:.45;cursor:default;filter:none}
+textarea,input[type=text],input[type=number],select{font:inherit;color:var(--ink);background:var(--paper);border:1px solid var(--line-strong);border-radius:8px;padding:9px 11px;max-width:100%}
+textarea{width:100%;min-height:96px;resize:vertical}
+select{padding:7px 8px}
+select.right,input.right{border-color:var(--good);box-shadow:0 0 0 2px var(--good-soft)}
+select.wrong,input.wrong{border-color:var(--bad);box-shadow:0 0 0 2px var(--bad-soft)}
+.model{margin-top:12px;border:1px dashed var(--line-strong);border-radius:10px;padding:14px}
+.model h4{margin:0 0 6px;font:600 14px var(--f-display)}
+.checks{display:grid;gap:6px;margin:10px 0 0;padding:0;list-style:none}
+.checks label{display:flex;gap:8px;align-items:flex-start}
+
+.tbl{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:15px}
+th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font:600 12px/1.2 var(--f-mono);text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+td.num,.mono{font-variant-numeric:tabular-nums;font-family:var(--f-mono);font-size:14px}
+.fix{display:block;font-size:12.5px;color:var(--good);margin-top:4px}
+
+.order{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.order li{display:flex;gap:10px;align-items:center;border:1px solid var(--line);border-radius:10px;padding:8px 10px;min-width:0}
+.order li span.t{flex:1;min-width:0}
+.order li .pos{font:600 13px var(--f-mono);color:var(--muted);width:22px;flex:none}
+.order li.right{border-color:var(--good);background:var(--good-soft)}
+.order li.wrong{border-color:var(--bad);background:var(--bad-soft)}
+.mv{all:unset;cursor:pointer;width:30px;height:30px;display:grid;place-items:center;border:1px solid var(--line);border-radius:7px;font-size:14px;flex:none}
+.mv:focus-visible{outline:3px solid var(--accent)}
+
+/* labeling diagrams */
+.labwrap{display:grid;gap:16px}
+.lablist{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px 16px}
+.lablist label{display:flex;gap:8px;align-items:center;min-width:0}
+.lablist label b{font:600 13px var(--f-mono);width:26px;flex:none;text-align:right}
+.lablist select{flex:1;min-width:0}
+.lab .badge circle{fill:var(--surface);stroke:var(--accent);stroke-width:1.5}
+.lab .badge.hl circle{fill:var(--accent)} .lab .badge.hl text{fill:var(--surface)}
+.lab .badge text{fill:var(--ink);font:600 12px var(--f-mono)}
+.lab .lead{stroke:var(--accent);stroke-width:1}
+.lab .ln{fill:none;stroke:var(--line-strong);stroke-width:1.6}
+.lab .soft{fill:none;stroke:var(--grid);stroke-width:1.4}
+.lab .bt{font:700 15px var(--f-display);fill:var(--ink)}
+.lab .cap{fill:var(--muted);font:12px var(--f-body)}
+.lab .pur{fill:var(--pur);fill-opacity:.16;stroke:var(--pur);stroke-width:1.4}
+.lab .pyr{fill:var(--pyr);fill-opacity:.16;stroke:var(--pyr);stroke-width:1.4}
+.lab .ph{fill:var(--line-strong);fill-opacity:.35;stroke:var(--line-strong);stroke-width:1.3}
+.lab .sug{fill:var(--surface);stroke:var(--ink);stroke-width:1.3}
+.lab .hb{stroke:var(--ink);stroke-width:1.3;stroke-dasharray:4 3}
+.legend{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:14px;margin:0 0 6px;color:var(--muted)}
+.legend span{display:inline-flex;gap:6px;align-items:center}
+.sw{width:14px;height:14px;border-radius:3px;display:inline-block}
+
+/* complement builder */
+.strand{font:600 20px/1 var(--f-mono);letter-spacing:.32em;overflow-wrap:anywhere;margin:0}
+.strand .lb{font:600 12px var(--f-mono);letter-spacing:.05em;color:var(--muted);display:block;margin-bottom:6px}
+.compin{font:600 20px var(--f-mono);letter-spacing:.32em;text-transform:uppercase;width:100%}
+.diff{font:600 20px/1.6 var(--f-mono);letter-spacing:.32em;overflow-wrap:anywhere}
+.diff .ok{color:var(--good)} .diff .no{color:var(--bad);text-decoration:underline}
+
+/* restriction digest */
+.seq{display:flex;flex-wrap:wrap;row-gap:10px;align-items:stretch;padding:12px;background:var(--paper);border:1px solid var(--line);border-radius:10px}
+.base{font:600 18px/36px var(--f-mono);width:20px;text-align:center}
+.gap{all:unset;cursor:pointer;width:12px;height:36px;position:relative;flex:none}
+.gap::after{content:"";position:absolute;left:5px;top:4px;bottom:4px;width:2px;border-radius:1px;background:transparent}
+.gap:hover::after{background:var(--line-strong)}
+.gap.on::after{background:var(--cut);top:0;bottom:0;width:3px;left:4.5px}
+.gap.miss::after{background:transparent;border-left:2px dashed var(--good);top:0;bottom:0}
+.gap.extra::after{background:var(--bad)}
+.gap.good::after{background:var(--good)}
+.gap[disabled]{cursor:default}
+.frags{display:grid;gap:6px;margin-top:12px}
+.fragrow{display:grid;grid-template-columns:92px minmax(0,1fr);gap:10px;align-items:center;font-size:14px}
+.fragbar{display:flex;gap:3px;min-width:0}
+.fragbar span{height:20px;border-radius:4px;background:var(--accent-soft);border:1px solid var(--accent);font:600 11px/18px var(--f-mono);color:var(--accent);text-align:center;min-width:16px;overflow:hidden}
+
+/* PCR explorer */
+.explore{display:grid;gap:14px}
+.sliders label{display:grid;gap:4px;font-size:14px}
+.sliders output{font:600 14px var(--f-mono);color:var(--accent)}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.box{background:var(--paper);border:1px solid var(--line);border-radius:10px}
+.box svg{display:block;width:100%;height:auto}
+.readout{display:flex;flex-wrap:wrap;gap:8px}
+.pill{font:600 12.5px var(--f-mono);padding:5px 9px;border-radius:999px;background:var(--accent-soft);color:var(--accent)}
+.steps{display:flex;flex-wrap:wrap;gap:6px}
+.stepbtn{all:unset;cursor:pointer;border:1px solid var(--line);border-radius:8px;padding:7px 11px;font-size:14px}
+.stepbtn[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft);box-shadow:inset 0 0 0 1px var(--accent)}
+.pcr .s1{stroke:var(--ink);stroke-width:3} .pcr .s2{stroke:var(--accent);stroke-width:3}
+.pcr .pr{stroke:var(--pyr);stroke-width:5} .pcr .rung{stroke:var(--line-strong);stroke-width:1.4}
+.pcr text{fill:var(--muted);font:12px var(--f-body)}
+.pcr .tt{fill:var(--ink);font:700 15px var(--f-display)}
+
+.ref{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:20px 22px}
+.ref h3{margin:0 0 8px;font:700 18px var(--f-display)}
+.ref ul{margin:0 0 14px;padding-left:20px;display:grid;gap:4px}
+.ref code{font:600 15px var(--f-mono);white-space:nowrap}
+.ref code i{color:var(--cut);font-style:normal}
+
+.res{display:grid;gap:16px}
+.rescard{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px 20px}
+.rescard h3{margin:0 0 10px;font:700 18px var(--f-display)}
+.lvrow{display:grid;grid-template-columns:90px minmax(0,1fr) 64px;gap:12px;align-items:center;margin:6px 0;font-size:14px}
+.lvrow .meter{height:8px}
+.lvrow .sc{font:600 13px var(--f-mono);text-align:right;font-variant-numeric:tabular-nums}
+.rates{display:flex;flex-wrap:wrap;gap:12px;margin-top:12px;font-size:14px}
+.rates label{display:flex;gap:8px;align-items:center}
+.note{color:var(--muted);font-size:14px}
+pre.out{white-space:pre-wrap;background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:12px;font:13px/1.5 var(--f-mono);margin:10px 0 0;max-width:100%;overflow-x:auto}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style></head><body>
+
+<div class="wrap">
+<header>
+  <div class="eyebrow">PLTW Principles of Biomedical Science · Activity 1.1.5</div>
+  <h1>DNA Evidence Review</h1>
+  <p class="std"><b>Standard:</b> I can demonstrate a comprehensive understanding of DNA, including its structure, location in cells, extraction techniques, polymerase chain reaction for replication, and the use of restriction enzymes in DNA profiling. Work through each learning target from Recall to Analyze. Answers check instantly, and your progress is saved on this device.</p>
+  <nav class="lt" id="ltnav" role="tablist"></nav>
+</header>
+<main id="main"></main>
+</div>
+
+<script>
+/* ---------- state ---------- */
+const KEY='dna-evidence-review-v1';
+const fresh=()=>({r:{},d:{},t:{},o:{},c:{},rev:{},rate:{},name:'',view:'lt1',lvl:{}});
+let S=fresh();
+try{const s=JSON.parse(localStorage.getItem(KEY)||'null'); if(s) S=Object.assign(S,s);}catch(e){}
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+/* ---------- DNA helpers ---------- */
+const PAIR={A:'T',T:'A',G:'C',C:'G'};
+const comp=s=>s.split('').map(b=>PAIR[b]).join('');
+const ENZ={EcoRI:{site:'GAATTC',cut:1,show:'G^AATTC',ends:'Sticky'},HaeIII:{site:'GGCC',cut:2,show:'GG^CC',ends:'Blunt'},HindIII:{site:'AAGCTT',cut:1,show:'A^AGCTT',ends:'Sticky'}};
+function cutsOf(seq,enz){const e=ENZ[enz],out=[];for(let i=0;i+e.site.length<=seq.length;i++)if(seq.substr(i,e.site.length)===e.site)out.push(i+e.cut);return out}
+function fragsOf(len,cuts){const p=[0,...cuts.slice().sort((a,b)=>a-b),len];return p.slice(1).map((v,i)=>v-p[i])}
+const fragMap=(rows,len)=>`<div class="frags">${rows.map(([lab,seq,enz])=>{const f=fragsOf(seq.length,cutsOf(seq,enz));return `<div class="fragrow"><b>${lab}</b><div class="fragbar">${f.map(n=>`<span style="flex:${n} 0 0" title="${n} bases">${n}</span>`).join('')}</div></div>`}).join('')}</div>`;
+
+/* ---------- figures ---------- */
+function helixFig(){
+  const cols=[170,320,470,620],T=70,B=260,pairs=[['A','T'],['C','G'],['G','C'],['T','A']];
+  const isPur=b=>b==='A'||b==='G';
+  const sugar=(cx,cy)=>`<polygon class="sug" points="${cx},${cy-14} ${cx+13},${cy-4} ${cx+8},${cy+11} ${cx-8},${cy+11} ${cx-13},${cy-4}"/>`;
+  let s=`<svg class="lab" viewBox="0 0 760 320" role="img" aria-label="Section of a DNA double helix with six numbered parts">
+  <line class="ln" x1="100" x2="700" y1="${T}" y2="${T}"/><line class="ln" x1="100" x2="700" y1="${B}" y2="${B}"/>`;
+  cols.forEach((cx,i)=>{const [t,b]=pairs[i];const ht=isPur(t)?70:50,hb=isPur(b)?70:50;const y1=84,y2=B-14;
+    s+=`<line class="ln" x1="${cx}" x2="${cx}" y1="${T+11}" y2="${y1}"/><line class="ln" x1="${cx}" x2="${cx}" y1="${y2}" y2="${B-11}"/>`;
+    s+=`<rect class="${isPur(t)?'pur':'pyr'}" x="${cx-34}" y="${y1}" width="68" height="${ht}" rx="7"/><text class="bt" x="${cx}" y="${y1+ht/2+5}" text-anchor="middle">${t}</text>`;
+    s+=`<rect class="${isPur(b)?'pur':'pyr'}" x="${cx-34}" y="${y2-hb}" width="68" height="${hb}" rx="7"/><text class="bt" x="${cx}" y="${y2-hb/2+5}" text-anchor="middle">${b}</text>`;
+    const n=(t==='G'||t==='C')?3:2,ya=y1+ht,yb=y2-hb;
+    for(let k=0;k<n;k++){const x=cx+(n===3?(k-1)*16:(k?10:-10));s+=`<line class="hb" x1="${x}" x2="${x}" y1="${ya+2}" y2="${yb-2}"/>`}
+    s+=sugar(cx,T)+sugar(cx,B);
+    if(i<3) s+=`<circle class="ph" cx="${cx+75}" cy="${T}" r="9"/><circle class="ph" cx="${cx+75}" cy="${B}" r="9"/>`;
+  });
+  s+=`<circle class="ph" cx="110" cy="${T}" r="9"/><circle class="ph" cx="695" cy="${B}" r="9"/>`;
+  s+=`<rect x="98" y="50" width="108" height="114" rx="9" fill="none" stroke="var(--accent)" stroke-width="1.4" stroke-dasharray="6 4"/>`;
+  return s;
+}
+/* badges are added separately so the same figure code is reused */
+function withBadges(svg,B){return svg+B.map(b=>`<line class="lead" x1="${b[0]}" y1="${b[1]}" x2="${b[2]}" y2="${b[3]}"/>`).join('')+B.map((b,i)=>`<g class="badge" data-n="${i+1}"><circle cx="${b[0]}" cy="${b[1]}" r="11"/><text x="${b[0]}" y="${b[1]+4.5}" text-anchor="middle">${i+1}</text></g>`).join('')+'</svg>'}
+const HELIX_B=[[110,22,110,58],[320,304,320,273],[400,152,355,122],[540,180,486,180],[52,108,98,108],[52,226,100,256]];
+const HELIX_LEG=`<div class="legend"><span><i class="sw" style="background:color-mix(in srgb,var(--pur) 25%,transparent);border:1.5px solid var(--pur)"></i>Larger base</span><span><i class="sw" style="background:color-mix(in srgb,var(--pyr) 25%,transparent);border:1.5px solid var(--pyr)"></i>Smaller base</span></div>`;
+const helixLab=()=>HELIX_LEG+withBadges(helixFig(),HELIX_B);
+const helixPlain=()=>HELIX_LEG+helixFig()+'</svg>';
+
+function zoomFig(){
+  const X=[66,192,316,440,566,692],y=130;
+  const arrow=x=>`<path d="M${x-10} ${y}H${x+8}M${x+2} ${y-6}L${x+8} ${y}L${x+2} ${y+6}" fill="none" stroke="var(--line-strong)" stroke-width="1.6"/>`;
+  let s=`<svg class="lab" viewBox="0 0 760 236" role="img" aria-label="Zooming from a cell down to DNA bases, six numbered panels">`;
+  [129,254,378,503,628].forEach(x=>s+=arrow(x));
+  // 1 cell
+  s+=`<ellipse class="ln" cx="${X[0]}" cy="${y}" rx="52" ry="40"/><circle class="ln" cx="${X[0]+4}" cy="${y}" r="15" style="fill:var(--accent-soft)"/><ellipse class="soft" cx="${X[0]-30}" cy="${y+14}" rx="9" ry="5"/><ellipse class="soft" cx="${X[0]+32}" cy="${y-16}" rx="8" ry="4"/><circle class="soft" cx="${X[0]-22}" cy="${y-20}" r="3"/>`;
+  // 2 nucleus
+  s+=`<circle class="ln" cx="${X[1]}" cy="${y}" r="48" style="fill:var(--accent-soft)"/>`;
+  [[-22,-14],[6,-24],[-6,10],[18,8],[-24,22]].forEach(([dx,dy],i)=>s+=`<path d="M${X[1]+dx} ${y+dy}c6 -8 10 4 16 -2s8 6 12 0" fill="none" stroke="var(--pur)" stroke-width="1.6"/>`);
+  // 3 chromosome
+  s+=`<g transform="translate(${X[2]} ${y})"><rect x="-9" y="-46" width="18" height="92" rx="9" transform="rotate(22)" fill="color-mix(in srgb,var(--pur) 22%,transparent)" stroke="var(--pur)" stroke-width="1.5"/><rect x="-9" y="-46" width="18" height="92" rx="9" transform="rotate(-22)" fill="color-mix(in srgb,var(--pur) 22%,transparent)" stroke="var(--pur)" stroke-width="1.5"/></g>`;
+  // 4 histones
+  s+=`<path d="M${X[3]-52} ${y+18}C${X[3]-40} ${y+18} ${X[3]-40} ${y-18} ${X[3]-26} ${y-18}S${X[3]-10} ${y+18} ${X[3]+2} ${y+18}S${X[3]+18} ${y-18} ${X[3]+30} ${y-18}S${X[3]+44} ${y+18} ${X[3]+54} ${y+18}" fill="none" stroke="var(--ink)" stroke-width="1.5"/>`;
+  [-36,-8,20,46].forEach((dx,i)=>s+=`<circle cx="${X[3]+dx}" cy="${y+(i%2?16:-16)}" r="11" fill="color-mix(in srgb,var(--pyr) 22%,transparent)" stroke="var(--pyr)" stroke-width="1.4"/>`);
+  // 5 double helix
+  for(let i=1;i<40;i+=4){const yy=y-50+i*2.5,a=X[4]+18*Math.sin(i/40*2.2*Math.PI),b=X[4]+18*Math.sin(i/40*2.2*Math.PI+Math.PI);s+=`<line x1="${a}" x2="${b}" y1="${yy}" y2="${yy}" stroke="var(--line-strong)" stroke-width="1.2"/>`}
+  const sp=ph=>Array.from({length:41},(_,i)=>`${(X[4]+18*Math.sin(i/40*2.2*Math.PI+ph)).toFixed(1)},${(y-50+i*2.5).toFixed(1)}`).join(' ');
+  s+=`<polyline points="${sp(0)}" fill="none" stroke="var(--ink)" stroke-width="2"/><polyline points="${sp(Math.PI)}" fill="none" stroke="var(--accent)" stroke-width="2"/>`;
+  // 6 base pair
+  s+=`<rect x="${X[5]-42}" y="${y-16}" width="46" height="32" rx="6" class="pur"/><rect x="${X[5]+6}" y="${y-16}" width="34" height="32" rx="6" class="pyr"/><text class="bt" x="${X[5]-19}" y="${y+5}" text-anchor="middle">A</text><text class="bt" x="${X[5]+23}" y="${y+5}" text-anchor="middle">T</text>`;
+  s+=`<text class="cap" x="${X[0]}" y="226" text-anchor="middle">largest</text><text class="cap" x="${X[5]}" y="226" text-anchor="middle">smallest</text>`;
+  return s;
+}
+const ZOOM_B=[[66,32,66,88],[192,32,192,80],[316,32,316,84],[440,32,440,108],[566,32,566,78],[692,32,692,112]];
+const zoomLab=()=>withBadges(zoomFig(),ZOOM_B);
+
+const twoStrand=(top,lab='')=>`<p class="strand"><span class="lb">${lab||'Given strand'}</span>${top}</p>`;
+
+/* ---------- content ---------- */
+const HELIX_PARTS=['Phosphate group','Deoxyribose sugar','Nitrogenous base','Hydrogen bonds','One nucleotide','Sugar-phosphate backbone'];
+const ZOOM_PARTS=['Cell','Nucleus','Chromosome','Histones','DNA double helix','Nitrogenous base pair'];
+const CASE={scene:'ACGAATTCTTGCATCCGTAGAATTCGGATCATTAGCAT',A:'ACGAATTCTTGCATGCGTAGAATTCGGATCATTAGCAT',B:'ACGAATTCTTGCATCCGTAGAGTTCGGATCATTAGCAT',C:'ACGAATTCTTGCAGAATTCATCCGTAGCGGATCATTAG'};
+const CASEFIG=`<div class="tbl"><table><tbody>${[['Crime scene','scene'],['Suspect A','A'],['Suspect B','B'],['Suspect C','C']].map(([l,k])=>`<tr><td style="white-space:nowrap"><b>${l}</b></td><td class="mono" style="letter-spacing:.12em;overflow-wrap:anywhere">${CASE[k]}</td></tr>`).join('')}</tbody></table></div><p class="note">All four samples were cut with EcoRI (G^AATTC). Only the top strand is shown.</p>`;
+const CASEMAP=()=>fragMap([['Scene',CASE.scene,'EcoRI'],['Suspect A',CASE.A,'EcoRI'],['Suspect B',CASE.B,'EcoRI'],['Suspect C',CASE.C,'EcoRI']]);
+
+const LT=[
+{key:'lt1',title:'DNA structure',target:'I can identify the components of DNA nucleotides and summarize the structure of a DNA molecule.',levels:[
+ [ // Recall
+  {type:'mc',prompt:'DNA stands for:',o:['deoxyribonucleic acid','dinitrogen acid','deoxyribose nuclear amino','double nucleotide acid'],a:0,e:'DNA is deoxyribonucleic acid. The “deoxyribo” part comes from its sugar, deoxyribose.'},
+  {type:'mc',prompt:'Every DNA nucleotide is built from which three parts?',o:['an amino acid, a sugar, and a base','a phosphate group, a deoxyribose sugar, and a nitrogenous base','a phosphate group, a protein, and a histone','a sugar, a fat, and a base'],a:1,e:'A nucleotide is one phosphate group + one deoxyribose sugar + one nitrogenous base.'},
+  {type:'mc',prompt:'Which part of a nucleotide makes it different from the other three types of nucleotides?',o:['the phosphate group','the deoxyribose sugar','the nitrogenous base','the hydrogen bond'],a:2,e:'The phosphate and sugar are the same in every nucleotide. Only the base (A, T, G, or C) changes.'},
+  {type:'mc',prompt:'In DNA, adenine (A) always pairs with:',o:['guanine (G)','cytosine (C)','thymine (T)','another adenine (A)'],a:2,e:'A pairs with T, and C pairs with G. This is complementary base pairing.'},
+  {type:'mc',prompt:'The shape of a DNA molecule is best described as a:',o:['single straight chain','double helix, like a twisted ladder','ring','folded sheet'],a:1,e:'Two strands twist around a central axis. The sugar-phosphate backbones are the sides of the ladder and the base pairs are the rungs.'},
+  {type:'mc',prompt:'Which two bases are purines?',o:['adenine and guanine','cytosine and thymine','adenine and thymine','guanine and cytosine'],a:0,e:'Adenine and guanine are purines (larger, two rings). Cytosine and thymine are pyrimidines (smaller, one ring).'},
+  {type:'mc',prompt:'The two strands of DNA are held together where the bases pair by:',o:['phosphate groups','hydrogen bonds','histone proteins','restriction enzymes'],a:1,e:'Weak hydrogen bonds join each base pair. That is why the strands can be pulled apart and copied.'},
+  {type:'mc',prompt:'Whose X-ray image, “Photo 51,” helped Watson and Crick work out the double helix in 1953?',o:['Erwin Chargaff','Rosalind Franklin','Alec Jeffreys','Maurice Wilkins'],a:1,e:'Rosalind Franklin’s X-ray diffraction image showed the helical shape. Chargaff discovered the base ratios, and Wilkins shared the 1962 Nobel Prize with Watson and Crick.'},
+  {type:'mc',prompt:'Chargaff’s Rules state that in any sample of DNA:',o:['all four bases are present in equal amounts','the amount of A equals T, and the amount of G equals C','there is always more A than G','the amount of A equals G, and the amount of T equals C'],a:1,e:'Because A always pairs with T and G always pairs with C, their amounts must match, even though different organisms have different overall amounts.'}
+ ],
+ [ // Apply
+  {type:'label',prompt:'Label the DNA molecule. Choose the name of each numbered part. Focus a menu to highlight its number on the diagram.',fig:helixLab,parts:HELIX_PARTS},
+  {type:'comp',prompt:'Write the complementary strand. Type the bases that would pair with this strand, in order from left to right.',s:'ATCGGTACCTAG'},
+  {type:'comp',prompt:'Write the complementary strand for this longer section.',s:'TTAGCCATGCATGGA'},
+  {type:'num',prompt:'A DNA sample is 30% adenine. Using Chargaff’s Rules, what percent is thymine?',a:30,unit:'%',e:'A always pairs with T, so the amount of T equals the amount of A: 30%.'},
+  {type:'num',prompt:'The same DNA sample is 30% adenine. What percent is guanine?',a:20,unit:'%',e:'A + T = 30 + 30 = 60%. The other 40% is G + C, split evenly: 40 ÷ 2 = 20% guanine.'},
+  {type:'table',prompt:'Match each term to its description.',cols:[{h:'Term',o:['Nucleotide','Double helix','Complementary base pairing','Purine','Pyrimidine','Hydrogen bond']}],
+   rows:[{l:'The building block of DNA: a phosphate, a sugar, and a base',a:['Nucleotide']},{l:'The twisted-ladder shape of DNA',a:['Double helix']},{l:'A always bonds with T and C always bonds with G',a:['Complementary base pairing']},{l:'A larger, two-ring base such as adenine or guanine',a:['Purine']},{l:'A smaller, one-ring base such as cytosine or thymine',a:['Pyrimidine']},{l:'The weak attraction that holds a base pair together',a:['Hydrogen bond']}]},
+  {type:'table',prompt:'Sort each base.',cols:[{h:'Class',o:['Purine','Pyrimidine']},{h:'Pairs with',o:['Adenine','Thymine','Guanine','Cytosine']}],
+   rows:[{l:'Adenine (A)',a:['Purine','Thymine']},{l:'Thymine (T)',a:['Pyrimidine','Adenine']},{l:'Guanine (G)',a:['Purine','Cytosine']},{l:'Cytosine (C)',a:['Pyrimidine','Guanine']}]},
+  {type:'short',prompt:'Summarize the structure of a DNA molecule. Use the words nucleotide, backbone, base pair, and double helix.',model:'DNA is made of many nucleotides linked in a chain. Each nucleotide has a phosphate group, a deoxyribose sugar, and a base. The sugars and phosphates link to form the backbone, the sides of the ladder. Bases from the two strands join in base pairs (A–T and C–G) by hydrogen bonds to form the rungs, and the whole ladder twists into a double helix.',pts:['Nucleotides (phosphate, sugar, base) are the building blocks','Sugars and phosphates form the backbone (sides of the ladder)','Bases pair A–T and C–G to form the rungs','The two strands twist into a double helix']}
+ ],
+ [ // Analyze
+  {type:'mc',prompt:'A lab reports a DNA sample that is 30% A, 30% T, 25% G, and 15% C. What can you conclude?',o:['The sample is normal double-stranded DNA','The results must contain an error, because G and C should be equal','The sample has too much adenine','The sample came from a bacterium'],a:1,e:'In double-stranded DNA every G is paired with a C, so G must equal C. A 25% / 15% split breaks Chargaff’s Rules.'},
+  {type:'mc',prompt:'Look at the diagram. Why does a purine always pair with a pyrimidine instead of with another purine?',fig:helixPlain,o:['Two purines would make the rung too wide; one large plus one small base keeps the ladder the same width','Purines cannot form hydrogen bonds','Pyrimidines are found only on the bottom strand','Two pyrimidines would be too heavy'],a:0,e:'A large base (two rings) plus a small base (one ring) gives every rung the same length, so the two backbones stay evenly spaced.'},
+  {type:'num',prompt:'A double-stranded DNA molecule contains 200 nucleotides in total. 60 of them are adenine. How many are guanine?',a:40,unit:'guanine',e:'T = A = 60, so A + T = 120. That leaves 200 − 120 = 80 for G + C. G = C, so 80 ÷ 2 = 40 guanine.'},
+  {type:'mc',prompt:'One strand of DNA reads GATTACA. A student says the other strand must read CTAATGT. Is the student right?',o:['Yes; each base was replaced by its partner','No; the other strand is identical: GATTACA','No; it should be TCGGCAC','No; you cannot predict the other strand'],a:0,e:'G→C, A→T, T→A, T→A, A→T, C→G, A→T gives CTAATGT. Knowing one strand always tells you the other.'},
+  {type:'short',prompt:'If one strand of DNA is known, can you determine the second strand? Explain your reasoning with your own example sequence of at least six bases.',model:'Yes. Because of complementary base pairing, A always pairs with T and C always pairs with G, so each base on the known strand tells you its partner. Example: if one strand is AGTCCA, the other strand is TCAGGT.',pts:['Answers yes','Explains A pairs with T and C pairs with G','Gives an example sequence of at least six bases','The example’s complement is correct']},
+  {type:'short',prompt:'All living things have DNA made from the same four nucleotides. How is it possible that every organism is so different?',model:'The four nucleotides can be arranged in any order, and DNA is extremely long. The order (sequence) of bases is a code for building proteins, so different sequences and different numbers of bases give each organism, and each person, a unique set of instructions.',pts:['The order (sequence) of bases differs','DNA is very long, so there are a huge number of possible sequences','The sequence codes for proteins that produce traits','Each individual has a unique sequence (genome)']}
+ ]
+]},
+{key:'lt2',title:'DNA in cells and extraction',target:'I can summarize the location of DNA in a cell and explain the process of isolating DNA from a cell for genetic analysis.',levels:[
+ [
+  {type:'mc',prompt:'In a eukaryotic cell, DNA is housed in the:',o:['mitochondria','nucleus','ribosomes','cell membrane'],a:1,e:'The nucleus is the organelle that holds the DNA and controls the cell’s activities.'},
+  {type:'mc',prompt:'Which type of organism is made of prokaryotic cells?',o:['plants','fungi','bacteria','animals'],a:2,e:'Only bacteria are prokaryotes. Animals, plants, fungi, and protists are all eukaryotes.'},
+  {type:'mc',prompt:'Bacteria have no nucleus. Their DNA is found in a region called the:',o:['nucleoid','histone','chromosome bank','vacuole'],a:0,e:'The nucleoid is the region of a prokaryotic cell where the DNA sits, with no membrane around it.'},
+  {type:'mc',prompt:'To form chromosomes, DNA winds around small proteins called:',o:['nucleotides','enzymes','histones','organelles'],a:2,e:'Like thread on a spool, DNA wraps around histones so it can pack tightly into chromosomes.'},
+  {type:'mc',prompt:'How many chromosomes are in a healthy human body cell?',o:['23','46','92','4'],a:1,e:'Body cells have 46 chromosomes. Sex cells (sperm and egg) have 23.'},
+  {type:'mc',prompt:'Mitochondria are organelles that:',o:['store DNA for the whole cell','produce energy for the cell','make the cell membrane','cut DNA'],a:1,e:'Mitochondria produce energy. Ribosomes help make proteins, and the nucleus holds the DNA.'},
+  {type:'mc',prompt:'During extraction, DNA becomes visible as a white, stringy clump when you add:',o:['salt water','cold alcohol (ethanol)','hot water','extraction buffer'],a:1,e:'DNA dissolves in water but clumps together in alcohol, so it comes out of solution where the ethanol layer meets the extract.'},
+  {type:'mc',prompt:'Suspects usually give a DNA sample by:',o:['a blood transfusion','a cheek swab','an X-ray','a fingerprint scan'],a:1,e:'A cotton swab rubbed inside the cheek collects cheek cells, and DNA is extracted from those cells.'}
+ ],
+ [
+  {type:'label',prompt:'Zoom into a DNA strand. Name each numbered level, from the whole cell down to the smallest part.',fig:zoomLab,parts:ZOOM_PARTS},
+  {type:'order',prompt:'Put the four basic steps of DNA extraction in order.',items:['Break open the cell and the nucleus','Purify: remove cell proteins, waste, organelles, and membrane pieces','Bundle the DNA by adding cold alcohol so it clumps into a visible solid','Clean off proteins still attached to the DNA, such as histones'],seed:[2,0,3,1]},
+  {type:'order',prompt:'Put the steps of the cheek-cell DNA extraction lab in order.',items:['Swish salt solution in your mouth for one minute, gently scraping your cheeks','Spit the salt solution into your cup','Pour it into the tube of extraction buffer and gently rock for two minutes','Tilt the tube and slowly add cold 95% ethanol down the side','Let the tube sit undisturbed for two to three minutes','Twirl a wooden stick at the layer boundary to collect the DNA'],seed:[3,5,1,0,4,2]},
+  {type:'table',prompt:'Classify each cell and tell where its DNA is found.',cols:[{h:'Cell type',o:['Eukaryotic','Prokaryotic']},{h:'DNA location',o:['Nucleus','Nucleoid']}],
+   rows:[{l:'Human skin cell',a:['Eukaryotic','Nucleus']},{l:'E. coli bacterium',a:['Prokaryotic','Nucleoid']},{l:'Strawberry cell',a:['Eukaryotic','Nucleus']},{l:'Mushroom (fungus) cell',a:['Eukaryotic','Nucleus']},{l:'Streptococcus bacterium',a:['Prokaryotic','Nucleoid']}]},
+  {type:'table',prompt:'Investigators find this evidence. Decide whether each item is a good source of DNA.',cols:[{h:'DNA source?',o:['Yes','No']}],
+   rows:[{l:'A hair with the follicle (root) attached',a:['Yes']},{l:'Mature red blood cells only',a:['No']},{l:'White blood cells from a blood stain',a:['Yes']},{l:'Saliva on a drinking straw',a:['Yes']},{l:'Bone found in a burned building',a:['Yes']},{l:'A shirt that was washed and bleached',a:['Yes']}]},
+  {type:'short',prompt:'Lab notebook paragraph: describe where DNA is found inside cells and how it is packaged. Use eukaryotic, prokaryotic, nucleus, histones, and chromosomes.',model:'In eukaryotic cells (animals, plants, fungi, protists), DNA is kept inside the nucleus. Prokaryotic cells (bacteria) have no nucleus, so their DNA sits in the nucleoid. Most of the time DNA is in loose strands, but when a cell divides, the DNA winds around histone proteins and coils tightly into chromosomes. A human body cell has 46 chromosomes.',pts:['Eukaryotic DNA is in the nucleus','Prokaryotic DNA is in the nucleoid (no nucleus)','DNA winds around histones','DNA coils into chromosomes (46 in a human body cell)']}
+ ],
+ [
+  {type:'mc',prompt:'An investigator collects a sample that contains only mature red blood cells. Why will DNA extraction fail?',o:['Red blood cells have no nucleus, so they have no DNA','Red blood cells are prokaryotic','The DNA in red blood cells is too long to extract','Blood cannot be mixed with alcohol'],a:0,e:'Mature red blood cells lose their nucleus. DNA in blood evidence comes from the white blood cells.'},
+  {type:'mc',prompt:'The same extraction procedure works on strawberries and on human cheek cells. Why?',o:['Both are prokaryotic','Both have cells with DNA inside a nucleus that can be broken open','Strawberries contain human DNA','The procedure only looks for proteins'],a:1,e:'Plant and animal cells are both eukaryotic. Breaking the cell and nucleus, purifying, and adding alcohol works the same way for both.'},
+  {type:'mc',prompt:'A student pours the ethanol in quickly and shakes the tube. What is the most likely result?',o:['More DNA collects at the top','The ethanol and extract mix, so little or no DNA clumps at a clear boundary','The DNA turns blue','The DNA becomes double stranded'],a:1,e:'The ethanol must sit on top as its own layer. Mixing it in removes the boundary where DNA clumps and can be spooled.'},
+  {type:'mc',prompt:'A hair is found at a scene, but it was cut and has no follicle. What is the best conclusion?',o:['It is a perfect DNA sample','The follicle holds the cells, so this hair is a poor source of nuclear DNA','Hair never contains DNA','Investigators should add more alcohol'],a:1,e:'The follicle is made of the cells the hair grew from. Without it, there are few cells and little DNA.'},
+  {type:'short',prompt:'What are two challenges in extracting DNA from evidence in an active investigation? Explain why each matters.',model:'Samples are often tiny, so there may be too little DNA to analyze without copying it. Samples can be contaminated by DNA from investigators or other people, which could point to the wrong person. Evidence may also be old or damaged by heat, water, or sunlight, which breaks DNA apart.',pts:['Names a first challenge (for example, very small samples)','Names a second challenge (for example, contamination or damaged DNA)','Explains why the first matters','Explains why the second matters']},
+  {type:'short',prompt:'Can you be framed by your own DNA? Describe one scenario in which a person’s own cells could lead to a false verdict of guilt.',model:'Yes. People shed skin cells, hair, and saliva everywhere. If someone shook hands with a friend or used a cup that was later moved to a crime scene, their DNA could be found there even though they were never at the scene. DNA shows a person’s cells were present, not how or when they got there.',pts:['Answers yes','Explains that people leave cells behind (skin, hair, saliva)','Gives a realistic scenario where DNA is transferred or planted','Notes that DNA shows presence of cells, not how or when they arrived']}
+ ]
+]},
+{key:'lt3',title:'PCR and DNA profiling',target:'I can summarize the process and purpose of polymerase chain reaction. In addition, I can explain and demonstrate the process of restriction enzymes with DNA profiling.',levels:[
+ [
+  {type:'mc',prompt:'PCR stands for:',o:['protein chain reaction','polymerase chain reaction','primary cell replication','polymer copy reaction'],a:1,e:'Polymerase chain reaction. It is named for DNA polymerase, the enzyme that builds the new strands.'},
+  {type:'mc',prompt:'Why do forensic scientists use PCR?',o:['To cut DNA into pieces','To make millions of copies of a specific DNA sequence from a small sample','To break open cells','To remove proteins from DNA'],a:1,e:'Crime scene samples often hold very little DNA. PCR copies it until there is enough to analyze.'},
+  {type:'mc',prompt:'Restriction enzymes are often called:',o:['molecular glue','molecular scissors','DNA builders','cell openers'],a:1,e:'They cut DNA at specific sequences, like scissors that only cut at certain marks.'},
+  {type:'mc',prompt:'The specific DNA sequence where a restriction enzyme cuts is called the:',o:['recognition site','primer','nucleoid','histone'],a:0,e:'Each enzyme “recognizes” its own short sequence and cuts there. The cut point is shown with a ^.'},
+  {type:'mc',prompt:'Restriction enzymes are made naturally by:',o:['human white blood cells','bacteria, to defend against invading viruses','plants, to store energy','viruses, to attack bacteria'],a:1,e:'Bacteria use them to chop up the DNA of viruses that invade them.'},
+  {type:'mc',prompt:'In the name EcoRI, what does “Eco” stand for?',o:['ecology','Escherichia coli, the bacterium it came from','the strain RY13','“first discovered”'],a:1,e:'E + co = Escherichia coli. R is strain RY13, and I means it was the first enzyme isolated from that strain.'},
+  {type:'mc',prompt:'Who developed the DNA profiling technique in 1984 that is still used today?',o:['Rosalind Franklin','Alec Jeffreys','James Watson','Erwin Chargaff'],a:1,e:'British scientist Alec Jeffreys used differences in DNA sequences to identify individuals.'},
+  {type:'mc',prompt:'An enzyme that cuts straight down the middle of its recognition site produces:',o:['sticky ends','blunt ends','primers','chromosomes'],a:1,e:'A straight cut leaves blunt ends (HaeIII). A staggered cut leaves single-stranded overhangs called sticky ends (EcoRI, HindIII).'}
+ ],
+ [
+  {type:'explore',prompt:'PCR explorer. Step through one cycle, then drag the slider to see how fast copies add up.'},
+  {type:'order',prompt:'Put the steps of one PCR cycle in order.',items:['Heat to about 95 °C so the two DNA strands separate','Cool to about 55 °C so short primers attach to each strand','Warm to about 72 °C so DNA polymerase adds nucleotides and builds new strands','Repeat: each cycle doubles the number of copies'],seed:[2,3,0,1]},
+  {type:'num',prompt:'PCR starts with 1 DNA molecule. How many copies are there after 5 cycles?',a:32,unit:'copies',e:'The number doubles each cycle: 1 → 2 → 4 → 8 → 16 → 32. That is 2⁵ = 32.'},
+  {type:'num',prompt:'How many copies are there after 10 cycles?',a:1024,unit:'copies',e:'2¹⁰ = 1,024. After about 30 cycles there are over a billion copies.'},
+  {type:'ref'},
+  {type:'digest',prompt:'Cut this DNA with EcoRI. Click between two bases to place a cut; click again to remove it. Then check your cuts.',seq:'CTAGAATTCGGTACCATGAATTCAGGTCA',enz:'EcoRI'},
+  {type:'num',prompt:'How many DNA fragments did EcoRI produce from the sequence above?',a:3,unit:'fragments',e:'EcoRI found GAATTC twice. Two cuts split the strand into 3 fragments: 4, 14, and 11 bases.'},
+  {type:'digest',prompt:'Cut this DNA with HaeIII (GG^CC).',seq:'ATGGCCTAGCTTAGGCCATTCAGGCCTAG',enz:'HaeIII'},
+  {type:'table',prompt:'Use your HaeIII digest above. Fill in the length of each fragment from left to right.',cols:[{h:'Length (bases)',o:['3','4','5','9','11','14']}],
+   rows:[{l:'Fragment 1',a:['4']},{l:'Fragment 2',a:['11']},{l:'Fragment 3',a:['9']},{l:'Fragment 4',a:['5']}],explain:'HaeIII cuts between GG and CC three times, after bases 4, 15, and 24. The 29 bases split into 4 + 11 + 9 + 5.'}
+ ],
+ [
+  {type:'digest',prompt:'Person 1: cut with HindIII (A^AGCTT).',seq:'TTAAGCTTCCGATAAGCTTGCAT',enz:'HindIII'},
+  {type:'digest',prompt:'Person 2: cut with HindIII (A^AGCTT). Read carefully; the site must match exactly.',seq:'GCAAGCTAACCGTAAGCTTCGATT',enz:'HindIII'},
+  {type:'mc',prompt:'Compare your Person 1 and Person 2 digests. Which statement is true?',o:['Both people produce 3 fragments','Person 1 produces 3 fragments and Person 2 produces 2, because AAGCTA near the start of Person 2 is not a HindIII site','Person 2 produces 3 fragments because AAGCT appears twice','Both produce 2 fragments'],a:1,e:'HindIII needs AAGCTT exactly. Person 2’s AAGCTA differs by one base, so it is not cut. Different sequences give different numbers and sizes of fragments.'},
+  {type:'mc',prompt:'A mutation changes one EcoRI site from GAATTC to GAGTTC. What happens when the DNA is digested with EcoRI?',o:['One more fragment forms','That site is no longer cut, so there is one fewer fragment and one larger fragment','Nothing changes','The DNA cannot be digested at all'],a:1,e:'The enzyme only cuts its exact recognition sequence. Losing a site joins two fragments into one longer piece.'},
+  {type:'table',prompt:'Case file: blood near the scene was digested with EcoRI, along with DNA from three persons of interest. Find the GAATTC sites in each sample.',fig:CASEFIG,
+   cols:[{h:'Number of fragments',o:['1','2','3','4']},{h:'Pattern matches the scene?',o:['Yes','No','—']}],
+   rows:[{l:'Crime scene',a:['3','—']},{l:'Suspect A',a:['3','Yes']},{l:'Suspect B',a:['2','No']},{l:'Suspect C',a:['3','No']}],
+   explain:`Fragment map (lengths in bases):${CASEMAP()}<p style="margin:8px 0 0">Suspect C also has 3 fragments, but they are different sizes (3, 11, 24), so the pattern does not match.</p>`},
+  {type:'mc',prompt:'Look closely at Suspect A’s sequence. It has the same fragment pattern as the scene, but one base is different (C→G at position 15). What does this tell you?',fig:CASEFIG,o:['Suspect A is definitely guilty','A matching pattern from one enzyme is strong evidence but not proof; real profiles compare many sites and the sequences here are not identical','The scene sample was contaminated','EcoRI made a mistake'],a:1,e:'Changes outside recognition sites do not change the fragment pattern. That is why real DNA profiles compare many locations, and why DNA evidence is combined with other evidence.'},
+  {type:'short',prompt:'Summarize how a tiny blood stain becomes a DNA profile that can be compared with suspects. Include extraction, PCR, and restriction enzymes in order.',model:'First, cells are collected from the stain and the DNA is extracted by breaking open the cells, purifying the DNA, and bundling it with alcohol. Next, PCR makes millions of copies so there is enough DNA to test. Then restriction enzymes cut the DNA at their recognition sites. Because everyone’s sequence is different, the number and sizes of fragments form a unique pattern that can be compared with the suspects’ patterns.',pts:['DNA is extracted from the cells in the stain','PCR copies the DNA to make enough to analyze','Restriction enzymes cut the DNA at recognition sites','The fragment pattern is compared with suspects; different sequences give different patterns']}
+ ]
+]}
+];
+const LVN=['Recall','Apply','Analyze'];
+LT.forEach((lt,li)=>lt.levels.forEach((qs,vi)=>{let n=0;qs.forEach((q,qi)=>{q.id=`${lt.key}-${vi}-${qi}`;q.lt=li;q.lv=vi;if(!['explore','ref'].includes(q.type)){n++;q.n=n}})}));
+
+/* ---------- scoring ---------- */
+function maxOf(q){if(q.type==='table')return q.rows.reduce((s,r)=>s+r.a.length,0);if(q.type==='label')return q.parts.length;if(q.type==='digest')return cutsOf(q.seq,q.enz).length;return 1}
+function lvScore(li,vi){let s=0,m=0,done=0,tot=0;LT[li].levels[vi].forEach(q=>{if(q.n==null)return;tot++;m+=maxOf(q);const r=S.r[q.id];if(r){done++;s+=r.score}});return {s,m,done,tot}}
+function ltScore(li){let s=0,m=0;[0,1,2].forEach(v=>{const x=lvScore(li,v);s+=x.s;m+=x.m});return {s,m}}
+
+/* ---------- nav ---------- */
+function renderNav(){
+  const nav=document.getElementById('ltnav');
+  const all=LT.reduce((a,_,i)=>{const x=ltScore(i);return [a[0]+x.s,a[1]+x.m]},[0,0]);
+  nav.innerHTML=LT.map((lt,i)=>{const x=ltScore(i);return `<button role="tab" aria-selected="${S.view===lt.key}" data-v="${lt.key}"><span class="ltk">LT${i+1}</span><span class="ltn">${lt.title}</span><span class="meter"><i style="width:${(x.s/x.m*100).toFixed(0)}%"></i></span></button>`}).join('')+
+   `<button role="tab" aria-selected="${S.view==='results'}" data-v="results"><span class="ltk">REPORT</span><span class="ltn">My results</span><span class="meter"><i style="width:${(all[0]/all[1]*100).toFixed(0)}%"></i></span></button>`;
+  nav.querySelectorAll('button').forEach(b=>b.onclick=()=>{S.view=b.dataset.v;save();render();try{history.replaceState(null,'','#'+S.view)}catch(e){}});
+}
+function render(){renderNav();const m=document.getElementById('main');m.innerHTML='';if(S.view==='results')return renderResults(m);
+  let L=LT.findIndex(l=>l.key===S.view);if(L<0)L=0;const lt=LT[L];const vi=S.lvl[lt.key]||0;
+  m.insertAdjacentHTML('beforeend',`<div class="lthead"><div class="eyebrow">Learning target ${L+1}</div><h2>${lt.title}</h2><p>${lt.target}</p></div>`);
+  const lv=document.createElement('div');lv.className='lv';lv.setAttribute('role','tablist');
+  lv.innerHTML=LVN.map((n,i)=>{const x=lvScore(L,i);return `<button role="tab" aria-selected="${i===vi}" data-i="${i}">Level ${i+1} · ${n}<small>${x.done}/${x.tot}</small></button>`}).join('');
+  lv.querySelectorAll('button').forEach(b=>b.onclick=()=>{S.lvl[lt.key]=+b.dataset.i;save();render()});
+  m.appendChild(lv);
+  const qs=document.createElement('div');qs.className='qs';m.appendChild(qs);
+  lt.levels[vi].forEach(q=>qs.appendChild(card(q)));
+  if(vi<2){const nx=document.createElement('div');nx.className='row';nx.innerHTML=`<button class="btn ghost">Go to Level ${vi+2} · ${LVN[vi+1]}</button>`;nx.firstChild.onclick=()=>{S.lvl[lt.key]=vi+1;save();render();window.scrollTo(0,0)};m.appendChild(nx)}
+  else if(L<LT.length-1){const nx=document.createElement('div');nx.className='row';nx.innerHTML=`<button class="btn ghost">Go to LT${L+2} · ${LT[L+1].title}</button>`;nx.firstChild.onclick=()=>{S.view=LT[L+1].key;save();render();window.scrollTo(0,0)};m.appendChild(nx)}
+}
+function refreshHead(){renderNav();let li=LT.findIndex(l=>l.key===S.view);if(li<0)return;document.querySelectorAll('.lv button').forEach(b=>{const x=lvScore(li,+b.dataset.i);b.querySelector('small').textContent=`${x.done}/${x.tot}`})}
+
+/* ---------- cards ---------- */
+const TL={mc:'Multiple choice',short:'Short answer',num:'Calculate',order:'Sequence',table:'Match',label:'Diagram',comp:'Base pairing',digest:'Restriction digest',explore:'Explore'};
+const figOf=q=>typeof q.fig==='function'?q.fig():q.fig;
+function card(q){const el=document.createElement('article');el.className='q';el.id='q-'+q.id;fill(el,q);return el}
+function head(q,skipFig){const r=S.r[q.id];const m=maxOf(q);let st='';if(r){st=r.score===m?`<span class="qstat ok">Correct${m>1?` ${r.score}/${m}`:''}</span>`:`<span class="qstat no">${m>1?`${r.score}/${m}`:(q.type==='short'?'Review again':'Not yet')}</span>`}
+  return `<div class="qhead">${q.n?`<span class="qnum">Q${q.n}</span>`:''}<span class="qtype">${TL[q.type]||''}</span>${st}</div><p class="prompt">${q.prompt}</p>${q.fig&&!skipFig?`<div class="fig">${figOf(q)}</div>`:''}`}
+function done(el,q){const r=S.r[q.id];el.classList.toggle('ok',!!r&&r.score===maxOf(q));el.classList.toggle('no',!!r&&r.score<maxOf(q));save();refreshHead()}
+const retryBtn=()=>`<button class="btn ghost" data-retry>Try again</button>`;
+function wireRetry(el,q){const b=el.querySelector('[data-retry]');if(b)b.onclick=()=>{delete S.r[q.id];if(q.type==='short')delete S.rev[q.id];fill(el,q);done(el,q)}}
+
+function fill(el,q){
+  const r=S.r[q.id];
+  if(q.type==='ref'){el.className='ref';el.innerHTML=REF;return}
+  if(q.type==='explore'){el.innerHTML=head(q)+EXPLORE;wireExplore(el);return}
+  let b='';
+  if(q.type==='mc'){
+    b=`<div class="opts">${q.o.map((o,i)=>{let c='';if(r){if(i===q.a)c='right';else if(i===r.v)c='wrong'}return `<button class="opt ${c}" data-i="${i}" ${r?'disabled':''}><span class="k">${'ABCD'[i]}</span><span>${o}</span></button>`}).join('')}</div>`;
+    if(r) b+=`<div class="fb"><b>${r.score?'Correct.':'Not quite.'}</b> ${q.e}</div><div class="row">${retryBtn()}</div>`;
+  }
+  if(q.type==='num'){
+    b=`<div class="row" style="margin-top:0"><input type="number" aria-label="Your answer" id="in-${q.id}" value="${r?r.v:esc(S.d[q.id]||'')}" ${r?'disabled':''} class="${r?(r.score?'right':'wrong'):''}" style="width:140px"> <span>${q.unit}</span>${r?'':`<button class="btn" data-check>Check</button>`}</div>`;
+    if(r) b+=`<div class="fb"><b>${r.score?'Correct.':`Not quite. The answer is ${q.a.toLocaleString()} ${q.unit}.`}</b> ${q.e}</div><div class="row">${retryBtn()}</div>`;
+  }
+  if(q.type==='short'){
+    const rev=S.rev[q.id];
+    b=`<textarea id="ta-${q.id}" aria-label="Your answer" placeholder="Type your answer here, then compare it with the model answer.">${esc(S.d[q.id]||'')}</textarea>`;
+    if(!rev) b+=`<div class="row"><button class="btn" data-reveal>Compare with model answer</button></div>`;
+    else{b+=`<div class="model"><h4>Model answer</h4><p style="margin:0">${q.model}</p><h4 style="margin-top:12px">Did your answer include…</h4><ul class="checks">${q.pts.map((p,i)=>`<li><label><input type="checkbox" ${(S.t[q.id]||[])[i]?'checked':''}> ${p}</label></li>`).join('')}</ul>
+      ${r?`<div class="row">${retryBtn()}</div>`:`<div class="row"><button class="btn" data-self="1">I got it</button><button class="btn ghost" data-self="0">I need to review this</button></div>`}</div>`}
+  }
+  if(q.type==='order'){
+    if(!S.o[q.id]) S.o[q.id]=q.seed.slice();
+    const ord=S.o[q.id];
+    b=`<ol class="order">${ord.map((it,p)=>{let c='';if(r)c=it===p?'right':'wrong';return `<li class="${c}"><span class="pos">${p+1}</span><span class="t">${q.items[it]}${r&&it!==p?`<span class="fix">Belongs in position ${it+1}</span>`:''}</span>${r?'':`<button class="mv" data-up="${p}" aria-label="Move up" ${p===0?'disabled':''}>↑</button><button class="mv" data-dn="${p}" aria-label="Move down" ${p===ord.length-1?'disabled':''}>↓</button>`}</li>`}).join('')}</ol>`;
+    b+=`<div class="row">${r?retryBtn():`<button class="btn" data-check>Check order</button>`}</div>`;
+  }
+  if(q.type==='table'){
+    const v=S.t[q.id]||[];
+    b=`<div class="tbl"><table><thead><tr><th></th>${q.cols.map(c=>`<th>${c.h}</th>`).join('')}</tr></thead><tbody>${q.rows.map((row,ri)=>`<tr><td>${row.l}</td>${q.cols.map((c,ci)=>{const val=(v[ri]||[])[ci]||'';let cls='';if(r)cls=val===row.a[ci]?'right':'wrong';
+      return `<td><select aria-label="${esc(row.l)}: ${esc(c.h)}" data-r="${ri}" data-c="${ci}" class="${cls}" ${r?'disabled':''}><option value="">Choose…</option>${c.o.map(o=>`<option ${o===val?'selected':''}>${o}</option>`).join('')}</select>${r&&val!==row.a[ci]?`<span class="fix">${row.a[ci]}</span>`:''}</td>`}).join('')}</tr>`).join('')}</tbody></table></div>`;
+    if(r&&q.explain) b+=`<div class="fb">${q.explain}</div>`;
+    b+=`<div class="row">${r?retryBtn():`<button class="btn" data-check>Check</button>`}</div>`;
+  }
+  if(q.type==='label') b=labelBody(q,r);
+  if(q.type==='comp') b=compBody(q,r);
+  if(q.type==='digest') b=digestBody(q,r);
+  el.innerHTML=head(q,q.type==='label')+b;
+  wire(el,q);done(el,q);
+}
+
+function wire(el,q){
+  wireRetry(el,q);
+  if(q.type==='mc') el.querySelectorAll('.opt').forEach(o=>o.onclick=()=>{const i=+o.dataset.i;S.r[q.id]={score:i===q.a?1:0,v:i};fill(el,q)});
+  if(q.type==='num'){const inp=el.querySelector('input');inp.oninput=()=>{S.d[q.id]=inp.value;save()};const c=el.querySelector('[data-check]');
+    const go=()=>{if(inp.value==='')return inp.focus();const v=parseFloat(inp.value);S.r[q.id]={score:Math.abs(v-q.a)<.01?1:0,v};fill(el,q)};
+    if(c){c.onclick=go;inp.onkeydown=e=>{if(e.key==='Enter')go()}}}
+  if(q.type==='short'){const ta=el.querySelector('textarea');ta.oninput=()=>{S.d[q.id]=ta.value;save()};
+    const rv=el.querySelector('[data-reveal]');if(rv)rv.onclick=()=>{S.rev[q.id]=1;fill(el,q)};
+    el.querySelectorAll('.checks input').forEach((c,i)=>c.onchange=()=>{const a=S.t[q.id]||[];a[i]=c.checked;S.t[q.id]=a;save()});
+    el.querySelectorAll('[data-self]').forEach(b=>b.onclick=()=>{S.r[q.id]={score:+b.dataset.self};fill(el,q)})}
+  if(q.type==='order'){const o=S.o[q.id];
+    el.querySelectorAll('[data-up]').forEach(b=>b.onclick=()=>{const p=+b.dataset.up;[o[p-1],o[p]]=[o[p],o[p-1]];save();fill(el,q);el.querySelector(`[data-up="${p-1}"]`)?.focus()});
+    el.querySelectorAll('[data-dn]').forEach(b=>b.onclick=()=>{const p=+b.dataset.dn;[o[p+1],o[p]]=[o[p],o[p+1]];save();fill(el,q);el.querySelector(`[data-dn="${p+1}"]`)?.focus()});
+    const c=el.querySelector('[data-check]');if(c)c.onclick=()=>{S.r[q.id]={score:o.every((v,i)=>v===i)?1:0};fill(el,q)}}
+  if(q.type==='table'){el.querySelectorAll('select').forEach(s=>s.onchange=()=>{const v=S.t[q.id]||[];const ri=+s.dataset.r;v[ri]=v[ri]||[];v[ri][+s.dataset.c]=s.value;S.t[q.id]=v;save()});
+    const c=el.querySelector('[data-check]');if(c)c.onclick=()=>{const v=S.t[q.id]||[];let sc=0;q.rows.forEach((row,ri)=>row.a.forEach((a,ci)=>{if((v[ri]||[])[ci]===a)sc++}));S.r[q.id]={score:sc};fill(el,q)}}
+  if(q.type==='label') wireLabel(el,q);
+  if(q.type==='comp') wireComp(el,q);
+  if(q.type==='digest') wireDigest(el,q);
+}
+
+/* ---------- diagram labeling ---------- */
+function labelBody(q,r){const v=S.t[q.id]||{};const sorted=q.parts.slice().sort();
+  const field=(i)=>{const key='n'+(i+1),val=v[key]||'',ans=q.parts[i],cls=r?(val===ans?'right':'wrong'):'';
+    return `<div><label><b>${i+1}</b><select data-k="${key}" aria-label="Part ${i+1}" class="${cls}" ${r?'disabled':''}><option value="">Choose…</option>${sorted.map(o=>`<option ${o===val?'selected':''}>${o}</option>`).join('')}</select></label>${r&&val!==ans?`<span class="fix" style="margin:2px 0 4px 34px">${ans}</span>`:''}</div>`};
+  return `<div class="labwrap"><div class="fig" style="margin:0">${figOf(q)}</div><div class="lablist">${q.parts.map((_,i)=>field(i)).join('')}</div></div>
+   <div class="row">${r?retryBtn():`<button class="btn" data-check>Check labels</button>`}</div>`}
+function wireLabel(el,q){el.querySelectorAll('select').forEach(s=>{const k=s.dataset.k;
+   const hl=on=>el.querySelector(`.badge[data-n="${k.slice(1)}"]`)?.classList.toggle('hl',on);
+   s.onfocus=()=>hl(true);s.onblur=()=>hl(false);s.onmouseenter=()=>hl(true);s.onmouseleave=()=>{if(document.activeElement!==s)hl(false)};
+   s.onchange=()=>{const v=S.t[q.id]||{};v[k]=s.value;S.t[q.id]=v;save()}});
+  const c=el.querySelector('[data-check]');if(c)c.onclick=()=>{const v=S.t[q.id]||{};let sc=0;q.parts.forEach((a,i)=>{if(v['n'+(i+1)]===a)sc++});S.r[q.id]={score:sc};fill(el,q)}}
+
+/* ---------- complementary strand ---------- */
+function compBody(q,r){const ans=comp(q.s);const val=r?r.v:(S.d[q.id]||'');
+  let b=twoStrand(q.s)+`<div style="height:12px"></div>`;
+  if(!r) b+=`<label class="strand" style="display:block"><span class="lb">Complementary strand</span><input type="text" class="compin" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="${q.s.length+10}" value="${esc(val)}" placeholder="${'·'.repeat(q.s.length)}"></label><div class="row"><button class="btn" data-check>Check</button><span class="note" data-cnt>${val.replace(/[^ATGC]/gi,'').length}/${q.s.length} bases</span></div>`;
+  else{const g=r.v;b+=`<div class="strand"><span class="lb">Your strand</span><div class="diff">${ans.split('').map((a,i)=>{const c=g[i]||'_';return `<span class="${c===a?'ok':'no'}">${esc(c)}</span>`}).join('')}${g.length>ans.length?`<span class="no">${esc(g.slice(ans.length))}</span>`:''}</div></div>
+    <div class="fb"><b>${r.score?'Correct.':'Not quite.'}</b> ${r.score?'Every base is paired correctly.':`The correct strand is <span class="mono">${ans}</span>. Underlined letters show mistakes.`} Remember: A pairs with T, and C pairs with G.</div><div class="row">${retryBtn()}</div>`}
+  return b}
+function wireComp(el,q){const inp=el.querySelector('input.compin');if(!inp)return;const cnt=el.querySelector('[data-cnt]');
+  inp.oninput=()=>{const p=inp.selectionStart;inp.value=inp.value.toUpperCase().replace(/[^ATGC]/g,'');try{inp.setSelectionRange(p,p)}catch(e){}S.d[q.id]=inp.value;cnt.textContent=`${inp.value.length}/${q.s.length} bases`;save()};
+  const go=()=>{const g=inp.value.toUpperCase().replace(/[^ATGC]/g,'');if(!g)return inp.focus();S.r[q.id]={score:g===comp(q.s)?1:0,v:g};fill(el,q)};
+  el.querySelector('[data-check]').onclick=go;inp.onkeydown=e=>{if(e.key==='Enter')go()}}
+
+/* ---------- restriction digest ---------- */
+function digestBody(q,r){const E=ENZ[q.enz],seq=q.seq,right=cutsOf(seq,q.enz),mine=S.c[q.id]||[];
+  let s=`<p class="note" style="margin:0 0 8px"><b>${q.enz}</b> recognizes <span class="mono">${E.site}</span> and cuts at <span class="mono">${E.show}</span>. Mark cuts on this strand.</p><div class="seq" role="group" aria-label="DNA sequence, ${seq.length} bases">`;
+  for(let i=0;i<seq.length;i++){
+    if(i>0){let cls=mine.includes(i)?'on':'';if(r){if(mine.includes(i)&&right.includes(i))cls='on good';else if(mine.includes(i)&&!right.includes(i))cls='on extra';else if(!mine.includes(i)&&right.includes(i))cls='miss'}
+      s+=`<button class="gap ${cls}" data-g="${i}" ${r?'disabled':''} aria-pressed="${mine.includes(i)}" aria-label="Cut between base ${i} and base ${i+1}"></button>`}
+    s+=`<span class="base">${seq[i]}</span>`}
+  s+=`</div>`;
+  if(!r) s+=`<div class="row"><button class="btn" data-check>Check cuts</button><button class="btn ghost" data-clear>Clear</button><span class="note">${mine.length} cut${mine.length===1?'':'s'} placed</span></div>`;
+  else{const good=mine.filter(x=>right.includes(x)).length,extra=mine.length-good,f=fragsOf(seq.length,right);
+    s+=`<div class="fb"><b>${r.score===right.length&&!extra?'All cuts correct.':`${good} of ${right.length} correct cut${right.length===1?'':'s'}${extra?`, ${extra} extra`:''}.`}</b> ${r.score===right.length&&!extra?'':'Green lines are correct cuts, green dashed lines are missed cuts, and red lines are cuts in the wrong place. '}${q.enz} cuts ${right.length} time${right.length===1?'':'s'}, making ${f.length} fragments: ${f.join(', ')} bases.</div>
+    <div class="frags"><div class="fragrow"><b>Fragments</b><div class="fragbar">${f.map(n=>`<span style="flex:${n} 0 0">${n}</span>`).join('')}</div></div></div><div class="row">${retryBtn()}</div>`}
+  return s}
+function wireDigest(el,q){
+  el.querySelectorAll('.gap:not([disabled])').forEach(g=>g.onclick=()=>{const i=+g.dataset.g,a=S.c[q.id]||(S.c[q.id]=[]);const k=a.indexOf(i);if(k<0)a.push(i);else a.splice(k,1);save();fill(el,q);el.querySelector(`.gap[data-g="${i}"]`)?.focus()});
+  const c=el.querySelector('[data-check]');if(c)c.onclick=()=>{const right=cutsOf(q.seq,q.enz),mine=S.c[q.id]||[];const good=mine.filter(x=>right.includes(x)).length;S.r[q.id]={score:Math.max(0,good-(mine.length-good))};fill(el,q)};
+  const cl=el.querySelector('[data-clear]');if(cl)cl.onclick=()=>{S.c[q.id]=[];save();fill(el,q)};
+  const rt=el.querySelector('[data-retry]');if(rt)rt.onclick=()=>{delete S.r[q.id];S.c[q.id]=[];fill(el,q);done(el,q)};
+}
+
+/* ---------- reference card ---------- */
+const REF=`<h3>Restriction enzymes at a glance</h3><ul>
+<li>Restriction enzymes are made by bacteria and cut DNA only at their <b>recognition site</b>. The ^ shows exactly where the cut happens.</li>
+<li>These sites read the same on both strands, so you only need to search the top strand.</li>
+<li>Each person’s sequence is a little different, so the <b>number and size of fragments</b> differ from person to person. That pattern is a DNA profile.</li>
+<li>To count fragments: number of cuts + 1.</li></ul>
+<div class="tbl"><table><thead><tr><th>Enzyme</th><th>Bacterial source</th><th>Recognition site</th><th>Ends</th></tr></thead><tbody>
+${Object.entries(ENZ).map(([k,e])=>`<tr><td><b>${k}</b></td><td><i>${{EcoRI:'Escherichia coli',HaeIII:'Haemophilus aegyptius',HindIII:'Haemophilus influenzae'}[k]}</i></td><td><code>${e.show.replace('^','<i>^</i>')}</code></td><td>${e.ends}</td></tr>`).join('')}</tbody></table></div>`;
+
+/* ---------- PCR explorer ---------- */
+const PCRSTEP=[['Start','Template DNA','One double-stranded DNA molecule from the sample.'],['1 · Denature','95 °C','Heat breaks the hydrogen bonds, and the two strands separate.'],['2 · Anneal','55 °C','The mix cools, and short primers attach to each strand where copying will start.'],['3 · Extend','72 °C','DNA polymerase adds matching nucleotides to build a new strand on each template.']];
+function pcrSVG(st){const L=150,R=610;let s=`<svg class="pcr" viewBox="0 0 760 200" role="img" aria-label="PCR step: ${PCRSTEP[st][0]}"><text class="tt" x="24" y="30">${PCRSTEP[st][0]}</text><text x="736" y="30" text-anchor="end">${PCRSTEP[st][1]}</text>`;
+  const rungs=(y1,y2,x0=L,x1=R)=>{let r='';for(let x=x0+15;x<x1;x+=24)r+=`<line class="rung" x1="${x}" x2="${x}" y1="${y1}" y2="${y2}"/>`;return r};
+  if(st===0) s+=rungs(96,124)+`<line class="s1" x1="${L}" x2="${R}" y1="96" y2="96"/><line class="s1" x1="${L}" x2="${R}" y1="124" y2="124"/>`;
+  if(st===1) s+=`<line class="s1" x1="${L}" x2="${R}" y1="70" y2="70"/><line class="s1" x1="${L}" x2="${R}" y1="150" y2="150"/>`;
+  if(st===2) s+=`<line class="s1" x1="${L}" x2="${R}" y1="70" y2="70"/><line class="s1" x1="${L}" x2="${R}" y1="150" y2="150"/><line class="pr" x1="${R-70}" x2="${R}" y1="86" y2="86"/><line class="pr" x1="${L}" x2="${L+70}" y1="134" y2="134"/>`+rungs(70,86,R-70,R)+rungs(134,150,L,L+70)+`<text x="${R-35}" y="106" text-anchor="middle">primer</text><text x="${L+35}" y="124" text-anchor="middle">primer</text>`;
+  if(st===3) s+=`<line class="s1" x1="${L}" x2="${R}" y1="56" y2="56"/><line class="s2" x1="${L}" x2="${R}" y1="80" y2="80"/>`+rungs(56,80)+`<line class="s1" x1="${L}" x2="${R}" y1="164" y2="164"/><line class="s2" x1="${L}" x2="${R}" y1="140" y2="140"/>`+rungs(140,164)+`<text x="380" y="114" text-anchor="middle">2 copies — new strands shown in color</text>`;
+  return s+`<text x="380" y="192" text-anchor="middle">${PCRSTEP[st][2]}</text></svg>`}
+const EXPLORE=`<div class="explore"><div class="steps" role="group" aria-label="PCR step">${PCRSTEP.map((p,i)=>`<button class="stepbtn" data-st="${i}" aria-pressed="${i===0}">${p[0]}</button>`).join('')}</div>
+<div class="box" id="pcrbox"></div>
+<div class="sliders"><label for="ex-n">Number of cycles <output id="ex-no"></output><input type="range" id="ex-n" min="0" max="30" step="1" value="3"></label></div>
+<div class="box"><svg viewBox="0 0 760 120" id="pcrdots" role="img" aria-label="Copies of DNA"></svg></div>
+<div class="readout"><span class="pill" id="ex-c"></span></div></div>`;
+function wireExplore(el){const box=el.querySelector('#pcrbox'),n=el.querySelector('#ex-n'),dots=el.querySelector('#pcrdots');
+  const setSt=i=>{box.innerHTML=pcrSVG(i);el.querySelectorAll('.stepbtn').forEach(b=>b.setAttribute('aria-pressed',+b.dataset.st===i))};
+  el.querySelectorAll('.stepbtn').forEach(b=>b.onclick=()=>setSt(+b.dataset.st));setSt(0);
+  const draw=()=>{const c=+n.value,copies=2**c;el.querySelector('#ex-no').textContent=c;
+    el.querySelector('#ex-c').textContent='Copies: '+copies.toLocaleString();
+    let s='';if(c<=6){const cols=16,w=40;for(let i=0;i<copies;i++){const x=24+(i%cols)*45,y=22+Math.floor(i/cols)*24;s+=`<line x1="${x}" x2="${x+w-6}" y1="${y}" y2="${y}" stroke="var(--ink)" stroke-width="2.5"/><line x1="${x}" x2="${x+w-6}" y1="${y+7}" y2="${y+7}" stroke="var(--accent)" stroke-width="2.5"/>`}}
+    else s=`<text x="380" y="58" text-anchor="middle" fill="var(--ink)" font-family="var(--f-display)" font-weight="700" font-size="22">${copies.toLocaleString()} copies</text><text x="380" y="86" text-anchor="middle" fill="var(--muted)" font-size="13">Too many to draw. Every cycle doubles the number.</text>`;
+    dots.innerHTML=s};
+  n.oninput=draw;draw()}
+
+/* ---------- results ---------- */
+function renderResults(m){
+  m.insertAdjacentHTML('beforeend',`<div class="lthead"><div class="eyebrow">Report</div><h2>My results</h2><p>Rate yourself on each learning target, then copy your report into Google Classroom if your teacher asks for it.</p></div>`);
+  const wrap=document.createElement('div');wrap.className='res';m.appendChild(wrap);
+  wrap.insertAdjacentHTML('beforeend',`<div class="rescard"><label for="nm" style="font:700 15px var(--f-display)">Your name</label><div class="row" style="margin-top:6px"><input type="text" id="nm" value="${esc(S.name)}" placeholder="First and last name" style="width:280px"></div></div>`);
+  LT.forEach((lt,li)=>{const rt=S.rate[lt.key]||{};
+    wrap.insertAdjacentHTML('beforeend',`<div class="rescard"><div class="eyebrow">LT${li+1}</div><h3>${lt.title}</h3><p class="note" style="margin:0 0 8px">${lt.target}</p>${[0,1,2].map(v=>{const x=lvScore(li,v);return `<div class="lvrow"><span>${LVN[v]}</span><span class="meter"><i style="width:${(x.s/x.m*100).toFixed(0)}%"></i></span><span class="sc">${x.s}/${x.m}</span></div>`}).join('')}
+    <div class="rates">${['before','after'].map(k=>`<label>Self-rating ${k}<select data-lt="${lt.key}" data-k="${k}"><option value="">–</option>${['1 · Not yet','2 · Getting there','3 · I’ve got it','4 · I could teach it'].map((o,i)=>`<option value="${i+1}" ${rt[k]==i+1?'selected':''}>${o}</option>`).join('')}</select></label>`).join('')}</div></div>`)});
+  wrap.insertAdjacentHTML('beforeend',`<div class="rescard"><h3>Report</h3><pre class="out" id="out"></pre><div class="row"><button class="btn" id="cp">Copy report</button><span class="note" id="cpm"></span></div>
+   <div class="row" style="margin-top:20px"><button class="btn ghost" id="rs">Start over</button><span class="note" id="rsm"></span></div></div>`);
+  const out=()=>{let t=`DNA Evidence Review (PBS 1.1.5)\nName: ${S.name||'—'}\n`;LT.forEach((lt,li)=>{const rt=S.rate[lt.key]||{};t+=`\nLT${li+1} ${lt.title}\n`+[0,1,2].map(v=>{const x=lvScore(li,v);return `  ${LVN[v]}: ${x.s}/${x.m} points (${x.done}/${x.tot} questions done)`}).join('\n')+`\n  Self-rating: before ${rt.before||'–'}, after ${rt.after||'–'}\n`});return t};
+  const upd=()=>{m.querySelector('#out').textContent=out()};upd();
+  m.querySelector('#nm').oninput=e=>{S.name=e.target.value;save();upd()};
+  m.querySelectorAll('.rates select').forEach(s=>s.onchange=()=>{const k=s.dataset.lt;S.rate[k]=S.rate[k]||{};S.rate[k][s.dataset.k]=s.value;save();upd()});
+  m.querySelector('#cp').onclick=()=>{const t=out(),msg=m.querySelector('#cpm');const sel=()=>{const r=document.createRange();r.selectNodeContents(m.querySelector('#out'));const s=getSelection();s.removeAllRanges();s.addRange(r);msg.textContent='Selected. Press Ctrl+C to copy.'};
+    try{navigator.clipboard.writeText(t).then(()=>msg.textContent='Copied.',sel)}catch(e){sel()}};
+  let armed=false;m.querySelector('#rs').onclick=e=>{if(!armed){armed=true;e.target.textContent='Click again to erase all answers';m.querySelector('#rsm').textContent='This clears every answer saved on this device.';return}
+    S=fresh();save();render()};
+}
+
+/* ---------- boot ---------- */
+const h=(location.hash||'').slice(1);if(['lt1','lt2','lt3','results'].includes(h))S.view=h;
+render();
+</script>
+</body></html>
